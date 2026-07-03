@@ -2314,17 +2314,15 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
     const year = viewDate.getFullYear();
     const month = viewDate.getMonth();
     const today = todayStr();
-    const firstDow = new Date(year, month, 1).getDay(); // 0=Sun
-    const startOffset = firstDow === 0 ? 6 : firstDow - 1; // Mon-first
+    const firstDow = new Date(year, month, 1).getDay();
+    const startOffset = firstDow === 0 ? 6 : firstDow - 1;
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     const monthLabel = new Date(year, month).toLocaleDateString("fr-CH", { month: "long", year: "numeric" });
-    // Build event map
     const byDate = {};
     events.forEach(e => {
       if (!byDate[e.date]) byDate[e.date] = [];
       byDate[e.date].push(e);
     });
-    // Build weeks
     const cells = [];
     for (let i = 0; i < startOffset; i++) cells.push(null);
     for (let d = 1; d <= daysInMonth; d++) cells.push(d);
@@ -2333,42 +2331,42 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
     for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7));
     const DAYS = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
     return React.createElement("div", null,
-      // Nav
-      React.createElement("div", { className: "flex items-center justify-between mb-4" },
-        React.createElement("button", { onClick: () => setViewDate(new Date(year, month - 1, 1)), className: "btn px-3 py-2 rounded-xl", style: { background: C.surfaceLight, color: C.cream } }, "←"),
+      React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 } },
+        React.createElement("button", { onClick: () => setViewDate(new Date(year, month - 1, 1)), className: "btn px-3 py-2 rounded-xl", style: { background: C.surfaceLight, color: C.cream, fontSize: 16 } }, "←"),
         React.createElement("p", { style: { color: C.cream, fontWeight: 700, fontSize: 16, textTransform: "capitalize" } }, monthLabel),
-        React.createElement("button", { onClick: () => setViewDate(new Date(year, month + 1, 1)), className: "btn px-3 py-2 rounded-xl", style: { background: C.surfaceLight, color: C.cream } }, "→")
+        React.createElement("button", { onClick: () => setViewDate(new Date(year, month + 1, 1)), className: "btn px-3 py-2 rounded-xl", style: { background: C.surfaceLight, color: C.cream, fontSize: 16 } }, "→")
       ),
-      // Grid
-      React.createElement("div", { className: "rounded-2xl overflow-hidden", style: { border: `1px solid ${C.line}` } },
-        // Day headers
-        React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(7,1fr)", background: C.surfaceLight } },
-          DAYS.map(d => React.createElement("div", { key: d, style: { textAlign: "center", padding: "8px 0", color: C.mute, fontSize: 11, fontWeight: 700 } }, d))
+      React.createElement("table", { style: { width: "100%", borderCollapse: "collapse", tableLayout: "fixed", border: `1px solid ${C.line}`, borderRadius: 16, overflow: "hidden" } },
+        React.createElement("thead", null,
+          React.createElement("tr", null,
+            DAYS.map(d => React.createElement("th", { key: d, style: { background: C.surfaceLight, padding: "8px 0", textAlign: "center", color: C.mute, fontSize: 11, fontWeight: 700, borderBottom: `1px solid ${C.line}` } }, d))
+          )
         ),
-        // Weeks
-        weeks.map((week, wi) =>
-          React.createElement("div", { key: wi, style: { display: "grid", gridTemplateColumns: "repeat(7,1fr)", borderTop: `1px solid ${C.line}` } },
-            week.map((d, di) => {
-              const dateStr = d ? `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}` : null;
-              const dayEvents = dateStr ? (byDate[dateStr] || []) : [];
-              const isToday = dateStr === today;
-              const isPast = dateStr && dateStr < today;
-              return React.createElement("div", { key: di, onClick: () => d && onDayClick && onDayClick(dateStr), style: { minHeight: 70, borderLeft: di > 0 ? `1px solid ${C.line}` : "none", background: isToday ? C.teal + "11" : "transparent", cursor: d ? "pointer" : "default", padding: "4px 3px" } },
-                d && React.createElement(React.Fragment, null,
-                  React.createElement("div", { style: { width: 22, height: 22, borderRadius: "50%", background: isToday ? C.teal : "transparent", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 2px" } },
-                    React.createElement("span", { style: { color: isToday ? C.ink : isPast ? C.mute : C.cream, fontSize: 12, fontWeight: isToday ? 800 : 400 } }, d)
-                  ),
-                  dayEvents.slice(0, 3).map((ev, ei) => {
-                    const myStatus = !isAdmin && attendance[ev.id]?.[session?.id];
-                    const dot = myStatus === "present" ? C.teal : myStatus === "absent" ? C.coral : myStatus === "maybe" ? C.gold : C.coral;
-                    return React.createElement("div", { key: ev.id, onClick: k => { k.stopPropagation(); onEventClick(ev); }, style: { background: isPast ? C.line : dot, borderRadius: 4, padding: "1px 4px", marginBottom: 2, overflow: "hidden" } },
-                      React.createElement("p", { style: { color: C.ink, fontSize: 9.5, fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" } }, ev.title)
-                    );
-                  }),
-                  dayEvents.length > 3 && React.createElement("p", { style: { color: C.mute, fontSize: 9, textAlign: "center" } }, `+${dayEvents.length - 3}`)
-                )
-              );
-            })
+        React.createElement("tbody", null,
+          weeks.map((week, wi) =>
+            React.createElement("tr", { key: wi },
+              week.map((d, di) => {
+                const dateStr = d ? `${year}-${String(month + 1).padStart(2,"0")}-${String(d).padStart(2,"0")}` : null;
+                const dayEvents = dateStr ? (byDate[dateStr] || []) : [];
+                const isToday = dateStr === today;
+                const isPast = dateStr && dateStr < today;
+                return React.createElement("td", { key: di, onClick: () => d && onDayClick && onDayClick(dateStr), style: { height: 80, verticalAlign: "top", padding: "4px 3px", border: `1px solid ${C.line}`, background: isToday ? C.teal + "18" : "transparent", cursor: d ? "pointer" : "default" } },
+                  d && React.createElement("div", null,
+                    React.createElement("div", { style: { width: 22, height: 22, borderRadius: "50%", background: isToday ? C.teal : "transparent", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 3px" } },
+                      React.createElement("span", { style: { color: isToday ? C.ink : isPast ? C.mute : C.cream, fontSize: 12, fontWeight: isToday ? 800 : 400, lineHeight: 1 } }, d)
+                    ),
+                    dayEvents.slice(0, 2).map(ev => {
+                      const myStatus = !isAdmin ? attendance[ev.id]?.[session?.id] : null;
+                      const bg = isPast ? C.line : (myStatus === "present" ? C.teal : myStatus === "absent" ? C.coral : myStatus === "maybe" ? C.gold : C.coral);
+                      return React.createElement("div", { key: ev.id, onClick: k => { k.stopPropagation(); onEventClick(ev); }, style: { background: bg, borderRadius: 3, padding: "1px 3px", marginBottom: 2, cursor: "pointer" } },
+                        React.createElement("p", { style: { color: isPast ? C.mute : C.ink, fontSize: 9, fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" } }, ev.title)
+                      );
+                    }),
+                    dayEvents.length > 2 && React.createElement("p", { style: { color: C.mute, fontSize: 9, textAlign: "center" } }, `+${dayEvents.length - 2}`)
+                  )
+                );
+              })
+            )
           )
         )
       )
