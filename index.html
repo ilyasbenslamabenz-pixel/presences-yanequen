@@ -2021,6 +2021,11 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
 @media (min-width: 1024px) {
   .sidebar { width: 260px; border-right: 1px solid #14141f; }
 }
+
+/* ---- Calendrier ---- */
+.cal-grid { display: flex !important; flex-direction: column !important; }
+.cal-row { display: flex !important; flex-direction: row !important; flex-wrap: nowrap !important; width: 100% !important; }
+.cal-cell { flex: 0 0 14.2857% !important; width: 14.2857% !important; min-height: 76px !important; box-sizing: border-box !important; }
 `;
 
   // ========== NOUVEAUX COMPOSANTS v2 ==========
@@ -2327,7 +2332,6 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
     const weeks = [];
     for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7));
     const DAYS = ["Lun","Mar","Mer","Jeu","Ven","Sam","Dim"];
-    const W = 14.2857;
     return React.createElement("div", null,
       React.createElement("div", { style: { display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 } },
         React.createElement("button", { onClick: () => setViewDate(new Date(year, month-1, 1)), style: { background:C.surfaceLight, color:C.cream, padding:"8px 14px", borderRadius:10, border:"none", cursor:"pointer", fontSize:16 } }, "\u2190"),
@@ -2335,18 +2339,18 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
         React.createElement("button", { onClick: () => setViewDate(new Date(year, month+1, 1)), style: { background:C.surfaceLight, color:C.cream, padding:"8px 14px", borderRadius:10, border:"none", cursor:"pointer", fontSize:16 } }, "\u2192")
       ),
       React.createElement("div", { style: { border:`1px solid ${C.line}`, borderRadius:12, overflow:"hidden" } },
-        React.createElement("div", { style: { display:"flex", background:C.surfaceLight, borderBottom:`1px solid ${C.line}` } },
-          DAYS.map(d => React.createElement("div", { key:d, style: { flex:"0 0 14.2857%", width:"14.2857%", textAlign:"center", padding:"8px 0", color:C.mute, fontSize:11, fontWeight:700, boxSizing:"border-box" } }, d))
+        React.createElement("div", { className: "cal-row", style: { background:C.surfaceLight, borderBottom:`1px solid ${C.line}` } },
+          DAYS.map(d => React.createElement("div", { key:d, className:"cal-cell", style: { textAlign:"center", padding:"8px 0", color:C.mute, fontSize:11, fontWeight:700, borderRight:`1px solid ${C.line}` } }, d))
         ),
         weeks.map((week, wi) =>
-          React.createElement("div", { key:wi, style: { display:"flex", borderBottom:`1px solid ${C.line}` } },
+          React.createElement("div", { key:wi, className:"cal-row", style: { borderBottom:`1px solid ${C.line}` } },
             week.map((d, di) => {
               const dateStr = d ? `${year}-${String(month+1).padStart(2,"0")}-${String(d).padStart(2,"0")}` : null;
               const dayEvents = dateStr ? (byDate[dateStr] || []) : [];
               const isToday = dateStr === today;
               const isPast = dateStr && dateStr < today;
-              return React.createElement("div", { key:di, onClick: () => d && onDayClick && onDayClick(dateStr),
-                style: { flex:"0 0 14.2857%", width:"14.2857%", minHeight:76, boxSizing:"border-box", borderRight:di<6?`1px solid ${C.line}`:"none", padding:"4px 3px", cursor:d?"pointer":"default", background:isToday?C.teal+"18":"transparent" } },
+              return React.createElement("div", { key:di, className:"cal-cell", onClick: () => d && onDayClick && onDayClick(dateStr),
+                style: { borderRight:di<6?`1px solid ${C.line}`:"none", padding:"4px 3px", cursor:d?"pointer":"default", background:isToday?C.teal+"18":"transparent", verticalAlign:"top" } },
                 d && React.createElement("div", null,
                   React.createElement("div", { style: { width:22, height:22, borderRadius:"50%", background:isToday?C.teal:"transparent", display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 3px" } },
                     React.createElement("span", { style: { color:isToday?C.ink:isPast?C.mute:C.cream, fontSize:12, fontWeight:isToday?800:400 } }, d)
