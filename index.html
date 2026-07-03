@@ -2379,46 +2379,123 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
 
   function AdminEventsPanel({ events, members, attendance, eventCounts, openAddEvent, openEditEvent, duplicateEvent, deleteEvent, confirmDelete, setConfirmDelete, setMark, showEventForm, submitEventForm, editingEventId, eventForm, setEventForm, setShowEventForm, setEditingEventId, displayStyle }) {
     const [detailEvent, setDetailEvent] = useState(null);
+    const [tab, setTab] = useState("upcoming");
+    const today = todayStr();
+    const upcoming = [...events].filter(e => e.date >= today).sort((a,b) => a.date.localeCompare(b.date));
+    const past = [...events].filter(e => e.date < today).sort((a,b) => b.date.localeCompare(a.date));
+    const list = tab === "upcoming" ? upcoming : past;
     return React.createElement("div", null,
-      React.createElement("div", { style: { display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:20 } },
+      React.createElement("div", { style: { display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 } },
         React.createElement("h2", { style: { ...displayStyle, color:C.cream, fontSize:20, margin:0 } }, "Événements"),
         React.createElement("button", { onClick: openAddEvent, style: { display:"flex", alignItems:"center", gap:6, padding:"9px 16px", borderRadius:12, border:"none", background:C.cream, color:C.ink, fontWeight:700, fontSize:13, cursor:"pointer" } }, React.createElement(Plus, { size:15 }), " Créer")
       ),
-      React.createElement(EventCalendar, { events, attendance, onDayClick: dateStr => { setEventForm(f => ({ ...f, date: dateStr })); openAddEvent(); }, onEventClick: setDetailEvent, isAdmin: true }),
+      React.createElement("div", { style: { display:"flex", gap:4, padding:4, borderRadius:12, background:C.surfaceLight, marginBottom:16 } },
+        [["upcoming", `À venir (${upcoming.length})`], ["past", `Passés (${past.length})`]].map(([id, label]) =>
+          React.createElement("button", { key:id, onClick: () => setTab(id), style: { flex:1, padding:"8px 0", borderRadius:9, border:"none", background:tab===id?C.cream:"transparent", color:tab===id?C.ink:C.mute, fontWeight:700, fontSize:13, cursor:"pointer" } }, label)
+        )
+      ),
+      list.length === 0
+        ? React.createElement(EmptyState, { text: tab==="upcoming" ? "Aucun événement à venir. Créez le premier !" : "Aucun événement passé." })
+        : React.createElement("div", { style: { display:"flex", flexDirection:"column", gap:10 } },
+            list.map(e => {
+              const counts = eventCounts(e.id);
+              const isPast = e.date < today;
+              const pct = counts.total ? Math.round(counts.present / counts.total * 100) : 0;
+              const daysUntil = Math.ceil((new Date(e.date) - new Date(today)) / 86400000);
+              return React.createElement("div", { key: e.id, onClick: () => setDetailEvent(e), style: { background:C.surface, border:`1px solid ${isPast?C.line:C.teal+"44"}`, borderRadius:16, padding:16, cursor:"pointer", borderLeft:`4px solid ${isPast?C.line:C.teal}` } },
+                React.createElement("div", { style: { display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:12 } },
+                  React.createElement("div", { style: { minWidth:0, flex:1 } },
+                    React.createElement("div", { style: { display:"flex", alignItems:"center", gap:8, flexWrap:"wrap", marginBottom:4 } },
+                      React.createElement("span", { style: { color:C.cream, fontWeight:700, fontSize:15 } }, e.title),
+                      !isPast && daysUntil === 0 && React.createElement("span", { style: { background:C.coral, color:C.ink, borderRadius:5, fontSize:10, fontWeight:800, padding:"1px 6px" } }, "AUJOURD'HUI"),
+                      !isPast && daysUntil === 1 && React.createElement("span", { style: { background:C.gold, color:C.ink, borderRadius:5, fontSize:10, fontWeight:800, padding:"1px 6px" } }, "DEMAIN"),
+                      !isPast && daysUntil > 1 && React.createElement("span", { style: { background:C.teal+"22", color:C.teal, borderRadius:5, fontSize:10, fontWeight:700, padding:"1px 6px" } }, `dans ${daysUntil}j`)
+                    ),
+                    React.createElement("div", { style: { display:"flex", flexWrap:"wrap", gap:10 } },
+                      React.createElement("span", { style: { display:"flex", alignItems:"center", gap:4, color:C.mute, fontSize:12.5 } }, React.createElement(Calendar, { size:12 }), " ", fmtDate(e.date), e.time ? ` · ${e.time}` : ""),
+                      e.location && React.createElement("span", { style: { fontSize:12.5 } }, React.createElement(LocationLink, { location:e.location, size:11 }))
+                    )
+                  ),
+                  React.createElement("div", { style: { textAlign:"center", flexShrink:0 } },
+                    React.createElement("span", { style: { color:isPast?C.teal:C.cream, fontSize:18, fontWeight:800 } }, pct + "%"),
+                    React.createElement("br", null),
+                    React.createElement("span", { style: { color:C.mute, fontSize:11 } }, `${counts.present}/${counts.total}`)
+                  )
+                ),
+                counts.total > 0 && React.createElement("div", { style: { height:4, background:C.surfaceLight, borderRadius:2, marginTop:10, overflow:"hidden" } },
+                  React.createElement("div", { style: { height:"100%", width:pct+"%", background:pct>=75?C.teal:pct>=50?C.gold:C.coral, borderRadius:2 } })
+                )
+              );
+            })
+          ),
       showEventForm && React.createElement(EventModal, { eventForm, setEventForm, submitEventForm, editingEventId, onClose: () => { setShowEventForm(false); setEditingEventId(null); } }),
-      detailEvent && React.createElement(EventDetailModal, { e: detailEvent, members, attendance, eventCounts, setMark, openEditEvent, duplicateEvent, deleteEvent, confirmDelete, setConfirmDelete, onClose: () => setDetailEvent(null), isAdmin: true })
+      detailEvent && React.createElement(EventDetailModal, { e:detailEvent, members, attendance, eventCounts, setMark, openEditEvent, duplicateEvent, deleteEvent, confirmDelete, setConfirmDelete, onClose: () => setDetailEvent(null), isAdmin:true })
     );
   }
 
   function MemberEventsPanel({ upcomingEvents, pastEventsDesc, attendance, session, setMark, eventCounts, displayStyle }) {
     const [detailEvent, setDetailEvent] = useState(null);
-    const allEvents = [...upcomingEvents, ...pastEventsDesc];
+    const [tab, setTab] = useState(upcomingEvents.length > 0 ? "upcoming" : "past");
+    const list = tab === "upcoming" ? upcomingEvents : pastEventsDesc;
+    const today = todayStr();
     return React.createElement("div", null,
-      React.createElement("div", { style: { display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:20 } },
+      React.createElement("div", { style: { display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 } },
         React.createElement("h2", { style: { ...displayStyle, color:C.cream, fontSize:20, margin:0 } }, "Événements"),
         upcomingEvents.length > 0 && React.createElement("span", { style: { background:C.teal+"22", color:C.teal, borderRadius:8, fontSize:12, fontWeight:700, padding:"4px 10px" } }, `${upcomingEvents.length} à venir`)
       ),
-      React.createElement(EventCalendar, { events: allEvents, attendance, onEventClick: ev => setDetailEvent(ev), session, isAdmin: false }),
-      detailEvent && React.createElement("div", { onClick: () => setDetailEvent(null), style: { position:"fixed", inset:0, background:"rgba(0,0,0,0.8)", zIndex:200, display:"flex", alignItems:"center", justifyContent:"center", padding:16 } },
-        React.createElement("div", { onClick: k => k.stopPropagation(), style: { width:"100%", maxWidth:420, background:C.surface, border:`1px solid ${C.line}`, borderRadius:20, padding:20 } },
+      React.createElement("div", { style: { display:"flex", gap:4, padding:4, borderRadius:12, background:C.surfaceLight, marginBottom:16 } },
+        [["upcoming", `À venir (${upcomingEvents.length})`], ["past", `Historique (${pastEventsDesc.length})`]].map(([id, label]) =>
+          React.createElement("button", { key:id, onClick: () => setTab(id), style: { flex:1, padding:"8px 0", borderRadius:9, border:"none", background:tab===id?C.cream:"transparent", color:tab===id?C.ink:C.mute, fontWeight:700, fontSize:13, cursor:"pointer" } }, label)
+        )
+      ),
+      list.length === 0
+        ? React.createElement(EmptyState, { text: tab==="upcoming" ? "Aucun événement à venir." : "Aucun événement passé." })
+        : React.createElement("div", { style: { display:"flex", flexDirection:"column", gap:10 } },
+            list.map(e => {
+              const status = attendance[e.id]?.[session.id];
+              const isPast = e.date < today;
+              const daysUntil = Math.ceil((new Date(e.date) - new Date(today)) / 86400000);
+              const statusColor = status==="present"?C.teal:status==="absent"?C.coral:status==="maybe"?C.gold:status==="excused"?C.violet:C.line;
+              return React.createElement("div", { key:e.id, onClick:()=>setDetailEvent(e), style: { background:C.surface, border:`1px solid ${C.line}`, borderLeft:`4px solid ${statusColor}`, borderRadius:16, padding:16, cursor:"pointer" } },
+                React.createElement("div", { style: { display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:12 } },
+                  React.createElement("div", { style: { minWidth:0, flex:1 } },
+                    React.createElement("div", { style: { display:"flex", alignItems:"center", gap:8, flexWrap:"wrap", marginBottom:4 } },
+                      React.createElement("span", { style: { color:C.cream, fontWeight:700, fontSize:15 } }, e.title),
+                      !isPast && daysUntil === 0 && React.createElement("span", { style: { background:C.coral, color:C.ink, borderRadius:5, fontSize:10, fontWeight:800, padding:"1px 6px" } }, "AUJOURD'HUI"),
+                      !isPast && daysUntil === 1 && React.createElement("span", { style: { background:C.gold, color:C.ink, borderRadius:5, fontSize:10, fontWeight:800, padding:"1px 6px" } }, "DEMAIN")
+                    ),
+                    React.createElement("div", { style: { display:"flex", flexWrap:"wrap", gap:10 } },
+                      React.createElement("span", { style: { display:"flex", alignItems:"center", gap:4, color:C.mute, fontSize:12.5 } }, React.createElement(Calendar, { size:12 }), " ", fmtDate(e.date), e.time ? ` · ${e.time}` : ""),
+                      e.location && React.createElement("span", { style: { fontSize:12.5 } }, React.createElement(LocationLink, { location:e.location, size:11 }))
+                    )
+                  ),
+                  status && React.createElement("span", { style: { background:statusColor+"22", color:statusColor, borderRadius:8, fontSize:11, fontWeight:700, padding:"3px 8px", whiteSpace:"nowrap", flexShrink:0 } },
+                    status==="present"?"Présent·e ✓":status==="absent"?"Absent·e ✗":status==="maybe"?"Peut-être":"Excusé·e"
+                  )
+                )
+              );
+            })
+          ),
+      detailEvent && React.createElement("div", { onClick:()=>setDetailEvent(null), style: { position:"fixed", inset:0, background:"rgba(0,0,0,0.8)", zIndex:200, display:"flex", alignItems:"center", justifyContent:"center", padding:16 } },
+        React.createElement("div", { onClick:k=>k.stopPropagation(), style: { width:"100%", maxWidth:420, background:C.surface, border:`1px solid ${C.line}`, borderRadius:20, padding:20 } },
           React.createElement("div", { style: { display:"flex", alignItems:"flex-start", justifyContent:"space-between", marginBottom:12 } },
             React.createElement("h3", { style: { color:C.cream, fontSize:17, fontWeight:700, margin:0 } }, detailEvent.title),
-            React.createElement("button", { onClick: () => setDetailEvent(null), style: { background:"none", border:"none", color:C.mute, cursor:"pointer", padding:4 } }, React.createElement(X, { size:18 }))
+            React.createElement("button", { onClick:()=>setDetailEvent(null), style: { background:"none", border:"none", color:C.mute, cursor:"pointer", padding:4 } }, React.createElement(X, { size:18 }))
           ),
           React.createElement("div", { style: { display:"flex", flexWrap:"wrap", gap:10, marginBottom:14 } },
             React.createElement("span", { style: { display:"flex", alignItems:"center", gap:5, color:C.mute, fontSize:13 } }, React.createElement(Calendar, { size:12 }), " ", fmtDate(detailEvent.date), detailEvent.time ? ` · ${detailEvent.time}` : ""),
-            detailEvent.location && React.createElement("span", { style: { fontSize:13 } }, React.createElement(LocationLink, { location: detailEvent.location, size:12 }))
+            detailEvent.location && React.createElement("span", { style: { fontSize:13 } }, React.createElement(LocationLink, { location:detailEvent.location, size:12 }))
           ),
           detailEvent.notes && React.createElement("p", { style: { color:C.mute, fontSize:13, marginBottom:14, lineHeight:1.5 } }, detailEvent.notes),
           React.createElement("div", { style: { display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 } },
             [
-              { key:"present", label: detailEvent.date <= todayStr() ? "J'étais présent·e" : "Je serai là", color: C.teal },
-              { key:"absent",  label: detailEvent.date <= todayStr() ? "J'étais absent·e" : "Je ne peux pas", color: C.coral },
-              { key:"maybe",   label: "Peut-être", color: C.gold },
-              { key:"excused", label: "Excusé·e",  color: C.violet }
+              { key:"present", label: detailEvent.date <= todayStr() ? "J'étais là" : "Je serai là", color:C.teal },
+              { key:"absent",  label: detailEvent.date <= todayStr() ? "J'étais absent·e" : "Je ne peux pas", color:C.coral },
+              { key:"maybe",   label: "Peut-être", color:C.gold },
+              { key:"excused", label: "Excusé·e",  color:C.violet }
             ].map(o => {
-              const status = attendance[detailEvent.id]?.[session.id];
-              return React.createElement("button", { key: o.key, onClick: () => setMark(detailEvent.id, session.id, o.key), style: { padding:"10px 8px", borderRadius:10, border:`2px solid ${status===o.key?o.color:"transparent"}`, background:status===o.key?o.color:C.surfaceLight, color:status===o.key?C.ink:C.mute, fontSize:12, fontWeight:700, cursor:"pointer" } }, o.label);
+              const st = attendance[detailEvent.id]?.[session.id];
+              return React.createElement("button", { key:o.key, onClick:()=>setMark(detailEvent.id, session.id, o.key), style: { padding:"10px 8px", borderRadius:10, border:`2px solid ${st===o.key?o.color:"transparent"}`, background:st===o.key?o.color:C.surfaceLight, color:st===o.key?C.ink:C.mute, fontSize:12, fontWeight:700, cursor:"pointer" } }, o.label);
             })
           )
         )
