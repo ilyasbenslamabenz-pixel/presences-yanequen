@@ -23,13 +23,15 @@ html, body { margin: 0; height: 100%; background: #12141B; }
     apiKey: "AIzaSyBC6zBDq4iolg4svv8psTgdmVgthtpHPkc",
     authDomain: "ces-yanequen.firebaseapp.com",
     projectId: "ces-yanequen",
-    appId: "1:528595846287:web:523e6ad75dff01e2ba9cfa"
+    appId: "1:528595846287:web:523e6ad75dff01e2ba9cfa",
+    assocName: "CES Yanequén"
   };
 </script>
 <div id="root"></div>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>/**
  * @license React
  * react.production.min.js
@@ -1035,6 +1037,115 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
         setLoginBusy(false);
       }
     }
+    function generateMemberPDF(member, assocName) {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ unit: "mm", format: "a4" });
+      const W = 210, marginL = 20, marginR = 20, contentW = W - marginL - marginR;
+      const coral = [235, 98, 2], ink = [18, 18, 24], cream = [240, 236, 224], mute = [120, 125, 150], lightBg = [245, 242, 237];
+      // — Header band —
+      doc.setFillColor(...coral);
+      doc.rect(0, 0, W, 38, "F");
+      doc.setFontSize(20);
+      doc.setTextColor(...cream);
+      doc.setFont("helvetica", "bold");
+      doc.text(assocName || "Association", marginL, 18);
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(255, 220, 180);
+      doc.text("FICHE D'ADH\xC9SION", marginL, 27);
+      // — Membership number / date —
+      doc.setFontSize(8.5);
+      doc.setTextColor(255, 220, 180);
+      const dateStr = new Date().toLocaleDateString("fr-CH", { day: "2-digit", month: "long", year: "numeric" });
+      doc.text(`Date d'inscription : ${dateStr}`, W - marginR, 27, { align: "right" });
+      doc.text(`N\xB0 adh\xE9rent : ${member.id.slice(0, 8).toUpperCase()}`, W - marginR, 33, { align: "right" });
+      // — Divider line —
+      let y = 52;
+      doc.setDrawColor(...coral);
+      doc.setLineWidth(0.6);
+      doc.line(marginL, y - 4, W - marginR, y - 4);
+      // — Section title helper —
+      function sectionTitle(label, yPos) {
+        doc.setFontSize(9);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(...coral);
+        doc.text(label.toUpperCase(), marginL, yPos);
+        doc.setDrawColor(...coral);
+        doc.setLineWidth(0.3);
+        doc.line(marginL, yPos + 1.5, W - marginR, yPos + 1.5);
+      }
+      // — Row helper —
+      function row(label, value, yPos, full) {
+        const colW = full ? contentW : contentW / 2 - 4;
+        doc.setFillColor(...lightBg);
+        doc.roundedRect(marginL, yPos - 4.5, full ? contentW : colW, 8, 1, 1, "F");
+        doc.setFontSize(7.5);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(...mute);
+        doc.text(label, marginL + 3, yPos - 1.2);
+        doc.setFontSize(9.5);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(...ink);
+        doc.text(value || "—", marginL + 3, yPos + 2.8);
+        return colW;
+      }
+      function row2(l1, v1, l2, v2, yPos) {
+        const half = contentW / 2 - 3;
+        doc.setFillColor(...lightBg);
+        doc.roundedRect(marginL, yPos - 4.5, half, 8, 1, 1, "F");
+        doc.roundedRect(marginL + half + 6, yPos - 4.5, half, 8, 1, 1, "F");
+        doc.setFontSize(7.5); doc.setFont("helvetica", "normal"); doc.setTextColor(...mute);
+        doc.text(l1, marginL + 3, yPos - 1.2);
+        doc.text(l2, marginL + half + 9, yPos - 1.2);
+        doc.setFontSize(9.5); doc.setFont("helvetica", "bold"); doc.setTextColor(...ink);
+        doc.text(v1 || "—", marginL + 3, yPos + 2.8);
+        doc.text(v2 || "—", marginL + half + 9, yPos + 2.8);
+      }
+      // — INFORMATIONS PERSONNELLES —
+      sectionTitle("Informations personnelles", y);
+      y += 10;
+      row("Nom complet", member.name, y, true); y += 12;
+      row2("Identifiant", member.username, "T\xE9l\xE9phone", member.phone || "—", y); y += 12;
+      row("Adresse e-mail", member.email || "—", y, true); y += 16;
+      // — ADHÉSION —
+      sectionTitle("Adh\xE9sion", y);
+      y += 10;
+      row2("R\xF4le dans l'association", member.role || "Membre", "Montant de la cotisation", member.cotisationAmount ? `${parseFloat(member.cotisationAmount).toFixed(2)} CHF` : "—", y); y += 12;
+      row2("Statut de la cotisation", member.cotisationPaid ? "Pay\xE9e \u2713" : "En attente", "Date d'inscription", dateStr, y); y += 16;
+      // — ENGAGEMENTS —
+      sectionTitle("Engagements", y);
+      y += 9;
+      doc.setFontSize(8.5);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(...mute);
+      const lines = doc.splitTextToSize(
+        "En adh\xE9rant \xE0 l'association, le membre s'engage \xE0 respecter les statuts et le r\xE8glement int\xE9rieur de l'association, \xE0 participer activement aux activit\xE9s, et \xE0 r\xE9gler sa cotisation annuelle dans les d\xE9lais impartis.",
+        contentW
+      );
+      doc.text(lines, marginL, y);
+      y += lines.length * 5 + 10;
+      // — Signature block —
+      const sigY = Math.max(y, 200);
+      doc.setDrawColor(...mute);
+      doc.setLineWidth(0.3);
+      const halfS = contentW / 2 - 6;
+      doc.line(marginL, sigY + 14, marginL + halfS, sigY + 14);
+      doc.line(marginL + halfS + 12, sigY + 14, W - marginR, sigY + 14);
+      doc.setFontSize(7.5);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(...mute);
+      doc.text("Signature du membre", marginL, sigY + 18);
+      doc.text("Signature du responsable", marginL + halfS + 12, sigY + 18);
+      doc.text("Lu et approuv\xE9", marginL, sigY + 9);
+      // — Footer —
+      doc.setFillColor(...coral);
+      doc.rect(0, 285, W, 12, "F");
+      doc.setFontSize(7.5);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(...cream);
+      doc.text(`${assocName || "Association"} \u2022 Fiche g\xE9n\xE9r\xE9e le ${dateStr}`, W / 2, 292, { align: "center" });
+      return doc;
+    }
     async function submitRegister(ev) {
       ev.preventDefault();
       setRegError("");
@@ -1053,11 +1164,20 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
       try {
         const { hash, salt, iterations } = await hashPassword(f.password);
         const newMember = { id: uid(), name: f.name.trim(), username: f.username.trim(), phone: f.phone.trim(), email: f.email.trim(), role: f.role.trim(), cotisationAmount: f.cotisationAmount ? parseFloat(f.cotisationAmount) : 0, cotisationPaid: false, passwordHash: hash, salt, iterations, isAdmin: false };
-        const nextMembers = [...members, newMember];
+        // Générer la fiche PDF
+        let pdfBase64 = null;
+        try {
+          const assocName = (window.CES_FIREBASE && window.CES_FIREBASE.assocName) || "CES Yanequén";
+          const doc = generateMemberPDF(newMember, assocName);
+          pdfBase64 = doc.output("datauristring");
+          doc.save(`fiche-adhesion-${newMember.name.replace(/\s+/g, "-").toLowerCase()}.pdf`);
+        } catch (pdfErr) { console.warn("PDF generation failed:", pdfErr); }
+        const newMemberWithPDF = pdfBase64 ? { ...newMember, fichePDF: pdfBase64 } : newMember;
+        const nextMembers = [...members, newMemberWithPDF];
         const nextInvites = invites.map((i) => i.code === code ? { ...i, used: true, usedBy: newMember.name } : i);
         await saveMembers(nextMembers);
         await saveInvites(nextInvites);
-        setSession(newMember);
+        setSession(newMemberWithPDF);
         setRegForm({ code: "", name: "", username: "", phone: "", email: "", role: "", cotisationAmount: "", password: "", password2: "" });
         setAuthView("login");
       } finally {
@@ -1343,24 +1463,13 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
           onGo: setAdminTab,
           displayStyle
         }
-      ), adminTab === "events" && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between mb-4" }, /* @__PURE__ */ React.createElement("h2", { style: { ...displayStyle, color: C.cream, fontSize: 20 } }, "\xC9v\xE9nements & pr\xE9sences"), /* @__PURE__ */ React.createElement("button", { onClick: openAddEvent, className: "btn flex items-center gap-1.5 px-3 py-2 rounded-lg font-medium text-sm", style: { background: C.cream, color: C.ink } }, /* @__PURE__ */ React.createElement(Plus, { size: 15 }), " Cr\xE9er")), showEventForm && /* @__PURE__ */ React.createElement("form", { onSubmit: submitEventForm, className: "flex flex-col gap-3 p-4 rounded-xl mb-5", style: { background: C.surface, border: `1px solid ${C.line}` } }, /* @__PURE__ */ React.createElement(Field, { label: "Titre" }, /* @__PURE__ */ React.createElement("input", { value: eventForm.title, onChange: (e) => setEventForm({ ...eventForm, title: e.target.value }), placeholder: "ex. Atelier broderie", className: "input", style: inputStyle })), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 gap-3" }, /* @__PURE__ */ React.createElement(Field, { label: "Date" }, /* @__PURE__ */ React.createElement("input", { type: "date", value: eventForm.date, onChange: (e) => setEventForm({ ...eventForm, date: e.target.value }), className: "input", style: inputStyle })), /* @__PURE__ */ React.createElement(Field, { label: "Heure" }, /* @__PURE__ */ React.createElement("input", { type: "time", value: eventForm.time, onChange: (e) => setEventForm({ ...eventForm, time: e.target.value }), className: "input", style: inputStyle }))), /* @__PURE__ */ React.createElement(Field, { label: "Lieu (cliquable \u2192 itin\xE9raire GPS)" }, React.createElement("div", null, /* @__PURE__ */ React.createElement("input", { value: eventForm.location, onChange: (e) => setEventForm({ ...eventForm, location: e.target.value }), placeholder: "ex. Rue de S\xE9cheron 2, 1202 Gen\xE8ve", className: "input", style: inputStyle }), React.createElement("p", { style: { color: C.mute, fontSize: 11, marginTop: 4 } }, "Indiquez une adresse compl\xE8te pour un itin\xE9raire pr\xE9cis. Les membres pourront cliquer dessus pour lancer le GPS."))), /* @__PURE__ */ React.createElement(Field, { label: "Notes (optionnel)" }, /* @__PURE__ */ React.createElement("textarea", { value: eventForm.notes, onChange: (e) => setEventForm({ ...eventForm, notes: e.target.value }), rows: 2, className: "input", style: inputStyle })), /* @__PURE__ */ React.createElement("div", { className: "flex gap-2 mt-1" }, /* @__PURE__ */ React.createElement("button", { type: "submit", className: "btn py-2 px-4 rounded-lg font-semibold text-sm", style: { background: C.cream, color: C.ink } }, editingEventId ? "Enregistrer" : "Cr\xE9er l'\xE9v\xE9nement"), /* @__PURE__ */ React.createElement("button", { type: "button", onClick: () => {
-        setShowEventForm(false);
-        setEditingEventId(null);
-      }, className: "btn py-2 px-4 rounded-lg text-sm", style: { color: C.mute } }, "Annuler"))), sortedEvents.length === 0 ? /* @__PURE__ */ React.createElement(EmptyState, { text: "Aucun \xE9v\xE9nement pour l'instant. Cr\xE9ez le premier ci-dessus." }) : /* @__PURE__ */ React.createElement(React.Fragment, null, sortedEvents.length > 4 && /* @__PURE__ */ React.createElement("input", { value: eventQuery, onChange: (ev) => setEventQuery(ev.target.value), placeholder: "Rechercher un \xE9v\xE9nement\u2026", className: "input mb-3", style: inputStyle }), /* @__PURE__ */ React.createElement("div", { className: "flex flex-col gap-2.5" }, [...sortedEvents].reverse().filter((e) => e.title.toLowerCase().includes(eventQuery.toLowerCase())).map((e) => {
-        const counts = eventCounts(e.id);
-        const isPast = e.date <= todayStr();
-        const open = openEventId === e.id;
-        return /* @__PURE__ */ React.createElement("div", { key: e.id, className: "rounded-xl overflow-hidden", style: { background: C.surface, border: `1px solid ${C.line}` } }, /* @__PURE__ */ React.createElement("button", { onClick: () => setOpenEventId(open ? null : e.id), className: "btn w-full flex items-center justify-between px-4 py-3 text-left" }, /* @__PURE__ */ React.createElement("div", { className: "min-w-0" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2" }, /* @__PURE__ */ React.createElement("span", { style: { color: C.cream, fontWeight: 600, fontSize: 14.5 } }, e.title), /* @__PURE__ */ React.createElement("span", { className: `badge ${isPast ? "badge-mute" : "badge-teal"}` }, isPast ? "Passé" : "À venir")), /* @__PURE__ */ React.createElement("p", { style: { color: C.mute, fontSize: 12.5 } }, fmtDate(e.date), e.time ? ` \xB7 ${e.time}` : ""), e.location && /* @__PURE__ */ React.createElement("div", { style: { marginTop: 3 } }, /* @__PURE__ */ React.createElement(LocationLink, { location: e.location, size: 11, style: { fontSize: 12 } }))), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-1 shrink-0 ml-2", style: { fontFamily: "'IBM Plex Mono', monospace", fontSize: 12 } }, /* @__PURE__ */ React.createElement("span", { style: { color: C.teal } }, counts.present), /* @__PURE__ */ React.createElement("span", { style: { color: C.mute } }, "/"), /* @__PURE__ */ React.createElement("span", { style: { color: C.cream } }, counts.total))), open && /* @__PURE__ */ React.createElement("div", { className: "px-4 pb-4 pt-1", style: { borderTop: `1px solid ${C.line}` } }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-end gap-3 py-2" }, /* @__PURE__ */ React.createElement("button", { onClick: () => duplicateEvent(e), className: "btn flex items-center gap-1 text-xs", style: { color: C.teal } }, /* @__PURE__ */ React.createElement(CopyPlus, { size: 12 }), " Dupliquer (+7j)"), /* @__PURE__ */ React.createElement("button", { onClick: () => openEditEvent(e), className: "btn flex items-center gap-1 text-xs", style: { color: C.mute } }, /* @__PURE__ */ React.createElement(Pencil, { size: 12 }), " Modifier"), confirmDelete?.type === "event" && confirmDelete.id === e.id ? /* @__PURE__ */ React.createElement(ConfirmDelete, { onConfirm: () => deleteEvent(e.id), onCancel: () => setConfirmDelete(null) }) : /* @__PURE__ */ React.createElement("button", { onClick: () => setConfirmDelete({ type: "event", id: e.id }), className: "btn flex items-center gap-1 text-xs", style: { color: C.coral } }, /* @__PURE__ */ React.createElement(Trash2, { size: 12 }), " Supprimer")), e.notes && /* @__PURE__ */ React.createElement("p", { className: "mb-2", style: { color: C.mute, fontSize: 12.5 } }, e.notes), /* @__PURE__ */ React.createElement("div", { className: "mb-2 pb-2", style: { borderBottom: `1px solid ${C.line}` } }, /* @__PURE__ */ React.createElement(CountPills, { present: counts.present, absent: counts.absent, maybe: counts.maybe, excused: counts.excused, none: counts.none })), /* @__PURE__ */ React.createElement("div", { className: "flex flex-col gap-1.5 mt-1" }, members.map((m) => {
-          const status = attendance[e.id]?.[m.id];
-          return /* @__PURE__ */ React.createElement("div", { key: m.id, className: "flex items-center justify-between gap-2 py-1.5", style: { flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("span", { style: { color: C.cream, fontSize: 13.5 } }, m.name), /* @__PURE__ */ React.createElement("div", { className: "flex gap-1.5", style: { flexWrap: "wrap", justifyContent: "flex-end" } }, /* @__PURE__ */ React.createElement("button", { onClick: () => setMark(e.id, m.id, "present"), className: "btn flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold", style: { background: status === "present" ? C.teal : "transparent", color: status === "present" ? C.ink : C.mute, border: `1.5px solid ${status === "present" ? C.teal : C.line}`, transition: "all 0.15s ease" } }, /* @__PURE__ */ React.createElement(CheckCircle2, { size: 12 }), " Présent"), /* @__PURE__ */ React.createElement("button", { onClick: () => setMark(e.id, m.id, "absent"), className: "btn flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold", style: { background: status === "absent" ? C.coral : "transparent", color: status === "absent" ? C.ink : C.mute, border: `1.5px solid ${status === "absent" ? C.coral : C.line}`, transition: "all 0.15s ease" } }, /* @__PURE__ */ React.createElement(XCircle, { size: 12 }), " Absent"), /* @__PURE__ */ React.createElement("button", { onClick: () => setMark(e.id, m.id, "maybe"), className: "btn flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold", style: { background: status === "maybe" ? C.gold : "transparent", color: status === "maybe" ? C.ink : C.mute, border: `1.5px solid ${status === "maybe" ? C.gold : C.line}`, transition: "all 0.15s ease" } }, "Peut-\xEAtre"), /* @__PURE__ */ React.createElement("button", { onClick: () => setMark(e.id, m.id, "excused"), className: "btn flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold", style: { background: status === "excused" ? C.violet : "transparent", color: status === "excused" ? C.ink : C.mute, border: `1.5px solid ${status === "excused" ? C.violet : C.line}`, transition: "all 0.15s ease" } }, "Excus\xE9")));
-        }))));
-      })))), adminTab === "members" && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between mb-4" }, /* @__PURE__ */ React.createElement("h2", { style: { ...displayStyle, color: C.cream, fontSize: 20 } }, "Membres"), /* @__PURE__ */ React.createElement("button", { onClick: openCreateMember, className: "btn flex items-center gap-1.5 px-3 py-2 rounded-lg font-medium text-sm", style: { background: C.cream, color: C.ink } }, /* @__PURE__ */ React.createElement(Plus, { size: 15 }), " Ajouter")), /* @__PURE__ */ React.createElement("p", { style: { color: C.mute, fontSize: 12.5, marginBottom: 14 } }, "Les membres s'inscrivent en g\xE9n\xE9ral eux-m\xEAmes via un code d'invitation (onglet Invitations). Vous pouvez aussi cr\xE9er un compte manuellement ici."), showMemberForm && /* @__PURE__ */ React.createElement("form", { onSubmit: submitMemberForm, className: "flex flex-col gap-3 p-4 rounded-xl mb-5", style: { background: C.surface, border: `1px solid ${C.line}` } }, /* @__PURE__ */ React.createElement(Field, { label: "Nom" }, /* @__PURE__ */ React.createElement("input", { value: memberForm.name, onChange: (e) => setMemberForm({ ...memberForm, name: e.target.value }), className: "input", style: inputStyle })), /* @__PURE__ */ React.createElement(Field, { label: "Identifiant de connexion" }, /* @__PURE__ */ React.createElement("input", { value: memberForm.username, onChange: (e) => setMemberForm({ ...memberForm, username: e.target.value }), autoCapitalize: "none", className: "input", style: inputStyle })), /* @__PURE__ */ React.createElement(Field, { label: "T\xE9l\xE9phone (optionnel)" }, /* @__PURE__ */ React.createElement("input", { value: memberForm.phone, onChange: (e) => setMemberForm({ ...memberForm, phone: e.target.value }), type: "tel", placeholder: "ex. 079 123 45 67", className: "input", style: inputStyle })), /* @__PURE__ */ React.createElement(Field, { label: "E-mail (optionnel)" }, /* @__PURE__ */ React.createElement("input", { value: memberForm.email, onChange: (e) => setMemberForm({ ...memberForm, email: e.target.value }), type: "email", autoCapitalize: "none", placeholder: "ex. prenom@email.com", className: "input", style: inputStyle })), /* @__PURE__ */ React.createElement(Field, { label: "R\xF4le dans l'association (optionnel)" }, /* @__PURE__ */ React.createElement("input", { value: memberForm.role, onChange: (e) => setMemberForm({ ...memberForm, role: e.target.value }), placeholder: "ex. B\xE9n\xE9vole, Tr\xE9sorier, Membre actif\u2026", className: "input", style: inputStyle })), /* @__PURE__ */ React.createElement(Field, { label: "Montant de la cotisation (CHF)" }, /* @__PURE__ */ React.createElement("input", { value: memberForm.cotisationAmount, onChange: (e) => setMemberForm({ ...memberForm, cotisationAmount: e.target.value }), type: "number", step: "0.01", min: "0", placeholder: "ex. 50", className: "input", style: inputStyle })), /* @__PURE__ */ React.createElement(Field, { label: memberCreateMode ? "Mot de passe \u2014 " + passwordHelp : "Nouveau mot de passe (laisser vide pour ne pas changer)" }, /* @__PURE__ */ React.createElement(PasswordInput, { value: memberForm.password, onChange: (e) => setMemberForm({ ...memberForm, password: e.target.value }), placeholder: "" })), /* @__PURE__ */ React.createElement("label", { className: "flex items-center gap-2", style: { color: C.cream, fontSize: 13.5 } }, /* @__PURE__ */ React.createElement("input", { type: "checkbox", checked: memberForm.isAdmin, onChange: (e) => setMemberForm({ ...memberForm, isAdmin: e.target.checked }) }), " Droits administrateur"), memberFormError && /* @__PURE__ */ React.createElement("p", { style: { color: C.coral, fontSize: 13 } }, memberFormError), /* @__PURE__ */ React.createElement("div", { className: "flex gap-2 mt-1" }, /* @__PURE__ */ React.createElement("button", { type: "submit", disabled: memberFormBusy, className: "btn py-2 px-4 rounded-lg font-semibold text-sm flex items-center gap-2", style: { background: C.cream, color: C.ink, opacity: memberFormBusy ? 0.7 : 1 } }, memberFormBusy && /* @__PURE__ */ React.createElement(Loader2, { size: 14, className: "spin" }), " ", editingMemberId ? "Enregistrer" : "Ajouter"), /* @__PURE__ */ React.createElement("button", { type: "button", onClick: () => {
+      ), adminTab === "events" && /* @__PURE__ */ React.createElement(AdminEventsPanel, { events: sortedEvents, members, attendance, eventCounts, openAddEvent, openEditEvent, duplicateEvent, deleteEvent, confirmDelete, setConfirmDelete, setMark, showEventForm, submitEventForm, editingEventId, eventForm, setEventForm, setShowEventForm, setEditingEventId, displayStyle }), adminTab === "members" && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between mb-4" }, /* @__PURE__ */ React.createElement("h2", { style: { ...displayStyle, color: C.cream, fontSize: 20 } }, "Membres"), /* @__PURE__ */ React.createElement("button", { onClick: openCreateMember, className: "btn flex items-center gap-1.5 px-3 py-2 rounded-lg font-medium text-sm", style: { background: C.cream, color: C.ink } }, /* @__PURE__ */ React.createElement(Plus, { size: 15 }), " Ajouter")), /* @__PURE__ */ React.createElement("p", { style: { color: C.mute, fontSize: 12.5, marginBottom: 14 } }, "Les membres s'inscrivent en g\xE9n\xE9ral eux-m\xEAmes via un code d'invitation (onglet Invitations). Vous pouvez aussi cr\xE9er un compte manuellement ici."), showMemberForm && /* @__PURE__ */ React.createElement("form", { onSubmit: submitMemberForm, className: "flex flex-col gap-3 p-4 rounded-xl mb-5", style: { background: C.surface, border: `1px solid ${C.line}` } }, /* @__PURE__ */ React.createElement(Field, { label: "Nom" }, /* @__PURE__ */ React.createElement("input", { value: memberForm.name, onChange: (e) => setMemberForm({ ...memberForm, name: e.target.value }), className: "input", style: inputStyle })), /* @__PURE__ */ React.createElement(Field, { label: "Identifiant de connexion" }, /* @__PURE__ */ React.createElement("input", { value: memberForm.username, onChange: (e) => setMemberForm({ ...memberForm, username: e.target.value }), autoCapitalize: "none", className: "input", style: inputStyle })), /* @__PURE__ */ React.createElement(Field, { label: "T\xE9l\xE9phone (optionnel)" }, /* @__PURE__ */ React.createElement("input", { value: memberForm.phone, onChange: (e) => setMemberForm({ ...memberForm, phone: e.target.value }), type: "tel", placeholder: "ex. 079 123 45 67", className: "input", style: inputStyle })), /* @__PURE__ */ React.createElement(Field, { label: "E-mail (optionnel)" }, /* @__PURE__ */ React.createElement("input", { value: memberForm.email, onChange: (e) => setMemberForm({ ...memberForm, email: e.target.value }), type: "email", autoCapitalize: "none", placeholder: "ex. prenom@email.com", className: "input", style: inputStyle })), /* @__PURE__ */ React.createElement(Field, { label: "R\xF4le dans l'association (optionnel)" }, /* @__PURE__ */ React.createElement("input", { value: memberForm.role, onChange: (e) => setMemberForm({ ...memberForm, role: e.target.value }), placeholder: "ex. B\xE9n\xE9vole, Tr\xE9sorier, Membre actif\u2026", className: "input", style: inputStyle })), /* @__PURE__ */ React.createElement(Field, { label: "Montant de la cotisation (CHF)" }, /* @__PURE__ */ React.createElement("input", { value: memberForm.cotisationAmount, onChange: (e) => setMemberForm({ ...memberForm, cotisationAmount: e.target.value }), type: "number", step: "0.01", min: "0", placeholder: "ex. 50", className: "input", style: inputStyle })), /* @__PURE__ */ React.createElement(Field, { label: memberCreateMode ? "Mot de passe \u2014 " + passwordHelp : "Nouveau mot de passe (laisser vide pour ne pas changer)" }, /* @__PURE__ */ React.createElement(PasswordInput, { value: memberForm.password, onChange: (e) => setMemberForm({ ...memberForm, password: e.target.value }), placeholder: "" })), /* @__PURE__ */ React.createElement("label", { className: "flex items-center gap-2", style: { color: C.cream, fontSize: 13.5 } }, /* @__PURE__ */ React.createElement("input", { type: "checkbox", checked: memberForm.isAdmin, onChange: (e) => setMemberForm({ ...memberForm, isAdmin: e.target.checked }) }), " Droits administrateur"), memberFormError && /* @__PURE__ */ React.createElement("p", { style: { color: C.coral, fontSize: 13 } }, memberFormError), /* @__PURE__ */ React.createElement("div", { className: "flex gap-2 mt-1" }, /* @__PURE__ */ React.createElement("button", { type: "submit", disabled: memberFormBusy, className: "btn py-2 px-4 rounded-lg font-semibold text-sm flex items-center gap-2", style: { background: C.cream, color: C.ink, opacity: memberFormBusy ? 0.7 : 1 } }, memberFormBusy && /* @__PURE__ */ React.createElement(Loader2, { size: 14, className: "spin" }), " ", editingMemberId ? "Enregistrer" : "Ajouter"), /* @__PURE__ */ React.createElement("button", { type: "button", onClick: () => {
         setShowMemberForm(false);
         setEditingMemberId(null);
       }, className: "btn py-2 px-4 rounded-lg text-sm", style: { color: C.mute } }, "Annuler"))), memberFormError && !showMemberForm && /* @__PURE__ */ React.createElement("p", { className: "mb-3", style: { color: C.coral, fontSize: 13 } }, memberFormError), members.length > 4 && /* @__PURE__ */ React.createElement("input", { value: memberQuery, onChange: (ev) => setMemberQuery(ev.target.value), placeholder: "Rechercher un membre\u2026", className: "input mb-3", style: inputStyle }), /* @__PURE__ */ React.createElement("div", { className: "flex flex-col gap-2" }, members.filter((m) => (m.name + " " + m.username).toLowerCase().includes(memberQuery.toLowerCase())).map((m) => {
         const r = rateFor(m.id);
         const showReset = resetInfo?.id === m.id;
-        return /* @__PURE__ */ React.createElement("div", { key: m.id, className: "rounded-xl", style: { background: C.surface, border: `1px solid ${showReset ? C.gold : C.line}` } }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between px-4 py-3" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-3 min-w-0" }, /* @__PURE__ */ React.createElement(AvatarColor, { name: m.name, size: "sm" }), /* @__PURE__ */ React.createElement("div", { className: "min-w-0" }, /* @__PURE__ */ React.createElement("p", { style: { color: C.cream, fontSize: 14, fontWeight: 500 } }, m.name, m.id === session.id ? " (vous)" : ""), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-1.5 flex-wrap", style: { marginTop: 2 } }, m.isAdmin ? React.createElement("span", { className: "badge badge-violet" }, "Admin") : React.createElement("span", { className: "badge badge-teal" }, "Membre"), m.role && React.createElement("span", { className: "badge badge-gold" }, m.role), React.createElement("span", { style: { color: C.mute, fontSize: 11.5 } }, "@" + m.username), r !== null && React.createElement("span", { className: `badge ${r >= 75 ? "badge-green" : r >= 50 ? "badge-gold" : "badge-coral"}` }, r + "% présence")))), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-3 shrink-0" }, m.id !== session.id && /* @__PURE__ */ React.createElement("button", { onClick: () => resetMemberPassword(m.id), title: "R\xE9initialiser le mot de passe", className: "btn", style: { color: C.gold } }, /* @__PURE__ */ React.createElement(KeyRound, { size: 15 })), /* @__PURE__ */ React.createElement("button", { onClick: () => openEditMember(m), className: "btn", style: { color: C.mute } }, /* @__PURE__ */ React.createElement(Pencil, { size: 15 })), confirmDelete?.type === "member" && confirmDelete.id === m.id ? /* @__PURE__ */ React.createElement(ConfirmDelete, { onConfirm: () => deleteMember(m.id), onCancel: () => setConfirmDelete(null) }) : /* @__PURE__ */ React.createElement("button", { onClick: () => setConfirmDelete({ type: "member", id: m.id }), className: "btn", style: { color: C.coral } }, /* @__PURE__ */ React.createElement(Trash2, { size: 15 })))), showReset && /* @__PURE__ */ React.createElement("div", { className: "px-4 pb-3 pt-1", style: { borderTop: `1px solid ${C.line}` } }, /* @__PURE__ */ React.createElement("p", { style: { color: C.cream, fontSize: 12.5, marginBottom: 8, marginTop: 8 } }, "Mot de passe temporaire pour ", /* @__PURE__ */ React.createElement("strong", null, resetInfo.name), ". Communiquez-le, demandez-lui de le changer apr\xE8s connexion (onglet Compte)."), /* @__PURE__ */ React.createElement(TempPasswordBox, { password: resetInfo.password, onClose: () => setResetInfo(null) })));
+        return /* @__PURE__ */ React.createElement("div", { key: m.id, className: "rounded-xl", style: { background: C.surface, border: `1px solid ${showReset ? C.gold : C.line}` } }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between px-4 py-3" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-3 min-w-0" }, /* @__PURE__ */ React.createElement(AvatarColor, { name: m.name, size: "sm" }), /* @__PURE__ */ React.createElement("div", { className: "min-w-0" }, /* @__PURE__ */ React.createElement("p", { style: { color: C.cream, fontSize: 14, fontWeight: 500 } }, m.name, m.id === session.id ? " (vous)" : ""), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-1.5 flex-wrap", style: { marginTop: 2 } }, m.isAdmin ? React.createElement("span", { className: "badge badge-violet" }, "Admin") : React.createElement("span", { className: "badge badge-teal" }, "Membre"), m.role && React.createElement("span", { className: "badge badge-gold" }, m.role), React.createElement("span", { style: { color: C.mute, fontSize: 11.5 } }, "@" + m.username), r !== null && React.createElement("span", { className: `badge ${r >= 75 ? "badge-green" : r >= 50 ? "badge-gold" : "badge-coral"}` }, r + "% présence")))), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-3 shrink-0" }, m.fichePDF && /* @__PURE__ */ React.createElement("a", { href: m.fichePDF, download: `fiche-adhesion-${m.name.replace(/\s+/g, "-").toLowerCase()}.pdf`, title: "T\xE9l\xE9charger la fiche PDF", className: "btn", style: { color: C.teal } }, /* @__PURE__ */ React.createElement(Download, { size: 15 })), m.id !== session.id && /* @__PURE__ */ React.createElement("button", { onClick: () => resetMemberPassword(m.id), title: "R\xE9initialiser le mot de passe", className: "btn", style: { color: C.gold } }, /* @__PURE__ */ React.createElement(KeyRound, { size: 15 })), /* @__PURE__ */ React.createElement("button", { onClick: () => openEditMember(m), className: "btn", style: { color: C.mute } }, /* @__PURE__ */ React.createElement(Pencil, { size: 15 })), confirmDelete?.type === "member" && confirmDelete.id === m.id ? /* @__PURE__ */ React.createElement(ConfirmDelete, { onConfirm: () => deleteMember(m.id), onCancel: () => setConfirmDelete(null) }) : /* @__PURE__ */ React.createElement("button", { onClick: () => setConfirmDelete({ type: "member", id: m.id }), className: "btn", style: { color: C.coral } }, /* @__PURE__ */ React.createElement(Trash2, { size: 15 })))), showReset && /* @__PURE__ */ React.createElement("div", { className: "px-4 pb-3 pt-1", style: { borderTop: `1px solid ${C.line}` } }, /* @__PURE__ */ React.createElement("p", { style: { color: C.cream, fontSize: 12.5, marginBottom: 8, marginTop: 8 } }, "Mot de passe temporaire pour ", /* @__PURE__ */ React.createElement("strong", null, resetInfo.name), ". Communiquez-le, demandez-lui de le changer apr\xE8s connexion (onglet Compte)."), /* @__PURE__ */ React.createElement(TempPasswordBox, { password: resetInfo.password, onClose: () => setResetInfo(null) })));
       }))), adminTab === "invites" && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between mb-2" }, /* @__PURE__ */ React.createElement("h2", { style: { ...displayStyle, color: C.cream, fontSize: 20 } }, "Invitations"), /* @__PURE__ */ React.createElement("button", { onClick: createInvite, className: "btn flex items-center gap-1.5 px-3 py-2 rounded-lg font-medium text-sm", style: { background: C.cream, color: C.ink } }, /* @__PURE__ */ React.createElement(Plus, { size: 15 }), " G\xE9n\xE9rer un code")), /* @__PURE__ */ React.createElement("p", { style: { color: C.mute, fontSize: 12.5, marginBottom: 16 } }, "G\xE9n\xE9rez un code, envoyez-le \xE0 la personne (WhatsApp, e-mail\u2026). Elle ouvre l'app, clique sur \xAB J'ai un code d'invitation \xBB et cr\xE9e son compte. Chaque code ne sert qu'une fois."), invites.length === 0 ? /* @__PURE__ */ React.createElement(EmptyState, { text: "Aucun code pour l'instant. G\xE9n\xE9rez-en un pour inviter un nouveau membre." }) : /* @__PURE__ */ React.createElement("div", { className: "flex flex-col gap-2" }, invites.map((i) => /* @__PURE__ */ React.createElement(InviteRow, { key: i.code, invite: i, onDelete: () => deleteInvite(i.code) })))), adminTab === "videos" && /* @__PURE__ */ React.createElement(
         PresentationsPanel,
         {
@@ -1395,7 +1504,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
       })))), adminTab === "notes" && /* @__PURE__ */ React.createElement(NotesPanel, { session, notes, onSave: saveNotes, canEdit: true, displayStyle }), adminTab === "cotisations" && /* @__PURE__ */ React.createElement(CotisationsPanel, { members, onSave: saveMembers, displayStyle }), adminTab === "comptabilite" && /* @__PURE__ */ React.createElement(ComptabilitePanel, { members, events, displayStyle }), adminTab === "dons" && /* @__PURE__ */ React.createElement(DonsPanel, { members, displayStyle }), adminTab === "calendar" && /* @__PURE__ */ React.createElement(CalendarPanel, { events: sortedEvents, attendance, members, displayStyle }), adminTab === "presentations" && /* @__PURE__ */ React.createElement(PresentationsPanel, { videos: presentations, canEdit: true, onSave: savePresentations, displayStyle, title: "Présentations", helpEdit: "Rangez ici les liens vers vos présentations (Google Slides, PowerPoint en ligne, Canva\u2026)." }), adminTab === "rapport" && /* @__PURE__ */ React.createElement(RapportPanel, { members, events: sortedEvents, attendance, pastEvents, avgRate, rateFor, exportCSV, displayStyle }), adminTab === "account" && /* @__PURE__ */ React.createElement(AccountPanel, { session, onChange: changeOwnPassword, onRegenerateRecovery: regenerateRecovery, displayStyle }))));
     }
     const myRate = rateFor(session.id);
-    return /* @__PURE__ */ React.createElement("div", { className: "min-h-screen lg:flex", style: { background: C.ink, ...fontStyle } }, /* @__PURE__ */ React.createElement("style", null, GLOBAL_CSS), /* @__PURE__ */ React.createElement(Sidebar, { open: menuOpen, onClose: () => setMenuOpen(false), items: MEMBER_NAV, active: memberTab, onSelect: setMemberTab, session, onLogout: logout, displayStyle, members }), /* @__PURE__ */ React.createElement("div", { className: "flex-1 min-w-0" }, /* @__PURE__ */ React.createElement(TopBar, { onMenu: () => setMenuOpen(true), title: MEMBER_NAV.find((i) => i.id === memberTab)?.label, displayStyle }), /* @__PURE__ */ React.createElement("div", { key: memberTab, className: "page-anim max-w-2xl mx-auto px-5 py-6" }, memberTab === "events" && /* @__PURE__ */ React.createElement(React.Fragment, null, upcomingEvents.length > 0 && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("h2", { style: { ...displayStyle, color: C.cream, fontSize: 18, marginBottom: 10 } }, "\xC0 venir"), /* @__PURE__ */ React.createElement("div", { className: "flex flex-col gap-2.5 mb-7" }, upcomingEvents.map((e) => /* @__PURE__ */ React.createElement(MemberEventCard, { key: e.id, e, status: attendance[e.id]?.[session.id], onMark: (s) => setMark(e.id, session.id, s), counts: eventCounts(e.id) })))), /* @__PURE__ */ React.createElement("h2", { style: { ...displayStyle, color: C.cream, fontSize: 18, marginBottom: 10 } }, "Pass\xE9s"), pastEventsDesc.length === 0 ? /* @__PURE__ */ React.createElement(EmptyState, { text: "Aucun \xE9v\xE9nement pass\xE9 pour l'instant." }) : /* @__PURE__ */ React.createElement("div", { className: "flex flex-col gap-2.5" }, pastEventsDesc.map((e) => /* @__PURE__ */ React.createElement(MemberEventCard, { key: e.id, e, status: attendance[e.id]?.[session.id], onMark: (s) => setMark(e.id, session.id, s), counts: eventCounts(e.id), past: true })))), memberTab === "profile" && /* @__PURE__ */ React.createElement("div", { className: "flex flex-col items-center pt-4" }, /* @__PURE__ */ React.createElement(SunRays, { percent: myRate ?? 0, size: 150, label: "pr\xE9sence" }), React.createElement("div", { style: { textAlign: "center", marginTop: 16 } },
+    return /* @__PURE__ */ React.createElement("div", { className: "min-h-screen lg:flex", style: { background: C.ink, ...fontStyle } }, /* @__PURE__ */ React.createElement("style", null, GLOBAL_CSS), /* @__PURE__ */ React.createElement(Sidebar, { open: menuOpen, onClose: () => setMenuOpen(false), items: MEMBER_NAV, active: memberTab, onSelect: setMemberTab, session, onLogout: logout, displayStyle, members }), /* @__PURE__ */ React.createElement("div", { className: "flex-1 min-w-0" }, /* @__PURE__ */ React.createElement(TopBar, { onMenu: () => setMenuOpen(true), title: MEMBER_NAV.find((i) => i.id === memberTab)?.label, displayStyle }), /* @__PURE__ */ React.createElement("div", { key: memberTab, className: "page-anim max-w-2xl mx-auto px-5 py-6" }, memberTab === "events" && /* @__PURE__ */ React.createElement(MemberEventsPanel, { upcomingEvents, pastEventsDesc, attendance, session, setMark, eventCounts, displayStyle }), memberTab === "profile" && /* @__PURE__ */ React.createElement("div", { className: "flex flex-col items-center pt-4" }, /* @__PURE__ */ React.createElement(SunRays, { percent: myRate ?? 0, size: 150, label: "pr\xE9sence" }), React.createElement("div", { style: { textAlign: "center", marginTop: 16 } },
         React.createElement(AvatarColor, { name: session.name, size: "lg", style: { margin: "0 auto 12px" } }),
         React.createElement("p", { style: { color: C.cream, fontSize: 18, fontWeight: 700 } }, session.name),
         React.createElement("div", { style: { display: "flex", gap: 8, justifyContent: "center", marginTop: 8, marginBottom: 24 } },
@@ -1600,7 +1709,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
       }
       setBusy(false);
     }
-    return /* @__PURE__ */ React.createElement("div", { className: "max-w-sm" }, /* @__PURE__ */ React.createElement("h2", { style: { ...displayStyle, color: C.cream, fontSize: 20, marginBottom: 4 } }, "Mon compte"), /* @__PURE__ */ React.createElement("p", { style: { color: C.mute, fontSize: 12.5, marginBottom: 16 } }, "Identifiant : ", /* @__PURE__ */ React.createElement("span", { style: { color: C.cream } }, "@", session.username)), /* @__PURE__ */ React.createElement("form", { onSubmit: submit, className: "flex flex-col gap-3 p-4 rounded-xl", style: { background: C.surface, border: `1px solid ${C.line}` } }, /* @__PURE__ */ React.createElement(Field, { label: "Mot de passe actuel" }, /* @__PURE__ */ React.createElement(PasswordInput, { value: oldPass, onChange: (e) => setOldPass(e.target.value), placeholder: "", autoComplete: "current-password" })), /* @__PURE__ */ React.createElement(Field, { label: "Nouveau mot de passe \u2014 " + passwordHelp }, /* @__PURE__ */ React.createElement(PasswordInput, { value: newPass, onChange: (e) => setNewPass(e.target.value), placeholder: "" })), /* @__PURE__ */ React.createElement(Field, { label: "Confirmer le nouveau mot de passe" }, /* @__PURE__ */ React.createElement(PasswordInput, { value: newPass2, onChange: (e) => setNewPass2(e.target.value), placeholder: "" })), msg && /* @__PURE__ */ React.createElement("p", { style: { color: msg.ok ? C.teal : C.coral, fontSize: 13 } }, msg.text), /* @__PURE__ */ React.createElement("button", { type: "submit", disabled: busy, className: "btn py-2.5 rounded-lg font-semibold flex items-center justify-center gap-2", style: { background: C.cream, color: C.ink, opacity: busy ? 0.7 : 1 } }, busy && /* @__PURE__ */ React.createElement(Loader2, { size: 15, className: "spin" }), " Mettre \xE0 jour le mot de passe")), session.isAdmin && /* @__PURE__ */ React.createElement("div", { className: "mt-5 p-4 rounded-xl", style: { background: C.surface, border: `1px solid ${C.line}` } }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2 mb-1.5" }, /* @__PURE__ */ React.createElement(ShieldCheck, { size: 16, style: { color: C.gold } }), /* @__PURE__ */ React.createElement("h3", { style: { color: C.cream, fontSize: 14.5, fontWeight: 600 } }, "Code de r\xE9cup\xE9ration")), /* @__PURE__ */ React.createElement("p", { style: { color: C.mute, fontSize: 12.5, marginBottom: 12 } }, session.recoveryHash ? "Un code est actif. En g\xE9n\xE9rer un nouveau remplace l'ancien (\xE0 reconserver)." : "Aucun code actif. G\xE9n\xE9rez-en un et conservez-le : il permet de r\xE9cup\xE9rer votre acc\xE8s en cas d'oubli du mot de passe."), /* @__PURE__ */ React.createElement("button", { onClick: onRegenerateRecovery, className: "btn py-2 px-4 rounded-lg font-semibold text-sm flex items-center gap-2", style: { background: C.cream, color: C.ink } }, /* @__PURE__ */ React.createElement(KeyRound, { size: 14 }), " ", session.recoveryHash ? "G\xE9n\xE9rer un nouveau code" : "G\xE9n\xE9rer mon code")));
+    return /* @__PURE__ */ React.createElement("div", { className: "max-w-sm" }, /* @__PURE__ */ React.createElement("h2", { style: { ...displayStyle, color: C.cream, fontSize: 20, marginBottom: 4 } }, "Mon compte"), /* @__PURE__ */ React.createElement("p", { style: { color: C.mute, fontSize: 12.5, marginBottom: 16 } }, "Identifiant : ", /* @__PURE__ */ React.createElement("span", { style: { color: C.cream } }, "@", session.username)), session.fichePDF && /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between px-4 py-3.5 rounded-xl mb-4", style: { background: C.surface, border: `1px solid ${C.line}` } }, React.createElement("div", null, React.createElement("p", { style: { color: C.cream, fontSize: 14, fontWeight: 600 } }, "Fiche d'adh\xE9sion"), React.createElement("p", { style: { color: C.mute, fontSize: 12 } }, "T\xE9l\xE9charger votre fiche PDF")), React.createElement("a", { href: session.fichePDF, download: `fiche-adhesion-${session.name.replace(/\s+/g, "-").toLowerCase()}.pdf`, className: "btn flex items-center gap-1.5 px-3 py-2 rounded-lg font-semibold text-sm", style: { background: C.teal, color: C.ink } }, React.createElement(Download, { size: 14 }), " PDF")), /* @__PURE__ */ React.createElement("form", { onSubmit: submit, className: "flex flex-col gap-3 p-4 rounded-xl", style: { background: C.surface, border: `1px solid ${C.line}` } }, /* @__PURE__ */ React.createElement(Field, { label: "Mot de passe actuel" }, /* @__PURE__ */ React.createElement(PasswordInput, { value: oldPass, onChange: (e) => setOldPass(e.target.value), placeholder: "", autoComplete: "current-password" })), /* @__PURE__ */ React.createElement(Field, { label: "Nouveau mot de passe \u2014 " + passwordHelp }, /* @__PURE__ */ React.createElement(PasswordInput, { value: newPass, onChange: (e) => setNewPass(e.target.value), placeholder: "" })), /* @__PURE__ */ React.createElement(Field, { label: "Confirmer le nouveau mot de passe" }, /* @__PURE__ */ React.createElement(PasswordInput, { value: newPass2, onChange: (e) => setNewPass2(e.target.value), placeholder: "" })), msg && /* @__PURE__ */ React.createElement("p", { style: { color: msg.ok ? C.teal : C.coral, fontSize: 13 } }, msg.text), /* @__PURE__ */ React.createElement("button", { type: "submit", disabled: busy, className: "btn py-2.5 rounded-lg font-semibold flex items-center justify-center gap-2", style: { background: C.cream, color: C.ink, opacity: busy ? 0.7 : 1 } }, busy && /* @__PURE__ */ React.createElement(Loader2, { size: 15, className: "spin" }), " Mettre \xE0 jour le mot de passe")), session.isAdmin && /* @__PURE__ */ React.createElement("div", { className: "mt-5 p-4 rounded-xl", style: { background: C.surface, border: `1px solid ${C.line}` } }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2 mb-1.5" }, /* @__PURE__ */ React.createElement(ShieldCheck, { size: 16, style: { color: C.gold } }), /* @__PURE__ */ React.createElement("h3", { style: { color: C.cream, fontSize: 14.5, fontWeight: 600 } }, "Code de r\xE9cup\xE9ration")), /* @__PURE__ */ React.createElement("p", { style: { color: C.mute, fontSize: 12.5, marginBottom: 12 } }, session.recoveryHash ? "Un code est actif. En g\xE9n\xE9rer un nouveau remplace l'ancien (\xE0 reconserver)." : "Aucun code actif. G\xE9n\xE9rez-en un et conservez-le : il permet de r\xE9cup\xE9rer votre acc\xE8s en cas d'oubli du mot de passe."), /* @__PURE__ */ React.createElement("button", { onClick: onRegenerateRecovery, className: "btn py-2 px-4 rounded-lg font-semibold text-sm flex items-center gap-2", style: { background: C.cream, color: C.ink } }, /* @__PURE__ */ React.createElement(KeyRound, { size: 14 }), " ", session.recoveryHash ? "G\xE9n\xE9rer un nouveau code" : "G\xE9n\xE9rer mon code")));
   }
   function MemberEventCard({ e, status, onMark, past, counts }) {
     const isPast = e.date <= (new Date()).toISOString().slice(0,10);
@@ -2097,6 +2206,208 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
       )
     );
   }
+
+  // ========== PANELS ÉVÉNEMENTS — CALENDRIER ==========
+
+  function EventModal({ eventForm, setEventForm, submitEventForm, editingEventId, onClose }) {
+    useEffect(() => {
+      function onKey(e) { if (e.key === "Escape") onClose(); }
+      document.addEventListener("keydown", onKey);
+      return () => document.removeEventListener("keydown", onKey);
+    }, []);
+    return React.createElement("div", { onClick: onClose, style: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 } },
+      React.createElement("div", { onClick: e => e.stopPropagation(), style: { width: "100%", maxWidth: 420, background: C.surface, border: `1px solid ${C.line}`, borderRadius: 20, padding: 20 } },
+        React.createElement("div", { className: "flex items-center justify-between mb-4" },
+          React.createElement("p", { style: { color: C.cream, fontWeight: 700, fontSize: 16 } }, editingEventId ? "Modifier l'événement" : "Nouvel événement"),
+          React.createElement("button", { onClick: onClose, className: "btn", style: { color: C.mute } }, React.createElement(X, { size: 18 }))
+        ),
+        React.createElement("form", { onSubmit: submitEventForm, className: "flex flex-col gap-3" },
+          React.createElement(Field, { label: "Titre *" }, React.createElement("input", { value: eventForm.title, onChange: e => setEventForm({ ...eventForm, title: e.target.value }), placeholder: "ex. Répétition générale", className: "input", style: inputStyle, autoFocus: true })),
+          React.createElement("div", { className: "grid grid-cols-2 gap-3" },
+            React.createElement(Field, { label: "Date *" }, React.createElement("input", { type: "date", value: eventForm.date, onChange: e => setEventForm({ ...eventForm, date: e.target.value }), className: "input", style: inputStyle })),
+            React.createElement(Field, { label: "Heure" }, React.createElement("input", { type: "time", value: eventForm.time, onChange: e => setEventForm({ ...eventForm, time: e.target.value }), className: "input", style: inputStyle }))
+          ),
+          React.createElement(Field, { label: "Lieu" }, React.createElement("input", { value: eventForm.location, onChange: e => setEventForm({ ...eventForm, location: e.target.value }), placeholder: "ex. Salle polyvalente…", className: "input", style: inputStyle })),
+          React.createElement(Field, { label: "Description" }, React.createElement("textarea", { value: eventForm.notes, onChange: e => setEventForm({ ...eventForm, notes: e.target.value }), rows: 2, placeholder: "Informations complémentaires…", className: "input", style: inputStyle })),
+          React.createElement("div", { className: "flex gap-2 mt-1" },
+            React.createElement("button", { type: "submit", className: "btn flex-1 py-2.5 rounded-xl font-semibold text-sm", style: { background: C.cream, color: C.ink } }, editingEventId ? "Enregistrer" : "Créer"),
+            React.createElement("button", { type: "button", onClick: onClose, className: "btn py-2 px-4 rounded-xl text-sm", style: { color: C.mute } }, "Annuler")
+          )
+        )
+      )
+    );
+  }
+
+  function EventDetailModal({ e, members, attendance, eventCounts, setMark, openEditEvent, duplicateEvent, deleteEvent, confirmDelete, setConfirmDelete, onClose, isAdmin }) {
+    useEffect(() => {
+      function onKey(k) { if (k.key === "Escape") onClose(); }
+      document.addEventListener("keydown", onKey);
+      return () => document.removeEventListener("keydown", onKey);
+    }, []);
+    const counts = eventCounts(e.id);
+    const isPast = e.date <= todayStr();
+    const pct = counts.total ? Math.round(counts.present / counts.total * 100) : 0;
+    const opts = [
+      { key: "present", label: "Présent",   color: C.teal,   icon: "✓" },
+      { key: "absent",  label: "Absent",    color: C.coral,  icon: "✗" },
+      { key: "maybe",   label: "Peut-être", color: C.gold,   icon: "?" },
+      { key: "excused", label: "Excusé",    color: C.violet, icon: "~" }
+    ];
+    return React.createElement("div", { onClick: onClose, style: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 } },
+      React.createElement("div", { onClick: k => k.stopPropagation(), style: { width: "100%", maxWidth: 480, maxHeight: "90vh", overflowY: "auto", background: C.surface, border: `1px solid ${C.line}`, borderRadius: 20, padding: 20 } },
+        // Header
+        React.createElement("div", { className: "flex items-start justify-between gap-2 mb-3" },
+          React.createElement("div", null,
+            React.createElement("h3", { style: { color: C.cream, fontSize: 18, fontWeight: 700 } }, e.title),
+            React.createElement("div", { className: "flex flex-wrap gap-2 mt-1.5" },
+              React.createElement("span", { className: "flex items-center gap-1", style: { color: C.mute, fontSize: 13 } }, React.createElement(Calendar, { size: 12 }), " ", fmtDate(e.date), e.time ? ` · ${e.time}` : ""),
+              e.location && React.createElement("span", { style: { fontSize: 13 } }, React.createElement(LocationLink, { location: e.location, size: 12 }))
+            )
+          ),
+          React.createElement("button", { onClick: onClose, className: "btn shrink-0", style: { color: C.mute } }, React.createElement(X, { size: 18 }))
+        ),
+        e.notes && React.createElement("p", { style: { color: C.mute, fontSize: 13, marginBottom: 12, lineHeight: 1.5 } }, e.notes),
+        // Presence bar
+        counts.total > 0 && React.createElement("div", null,
+          React.createElement("div", { className: "flex items-center justify-between mb-1" },
+            React.createElement("span", { style: { color: C.mute, fontSize: 12 } }, "Présences"),
+            React.createElement("span", { style: { color: C.teal, fontWeight: 700, fontSize: 13 } }, `${counts.present}/${counts.total} · ${pct}%`)
+          ),
+          React.createElement("div", { style: { height: 6, background: C.surfaceLight, borderRadius: 3, marginBottom: 16, overflow: "hidden" } },
+            React.createElement("div", { style: { height: "100%", width: pct + "%", background: pct >= 75 ? C.teal : pct >= 50 ? C.gold : C.coral, borderRadius: 3 } })
+          )
+        ),
+        // Member list (admin) or own RSVP buttons (member)
+        isAdmin
+          ? React.createElement("div", { className: "flex flex-col gap-0 mb-4" },
+              members.map(m => {
+                const status = attendance[e.id]?.[m.id];
+                return React.createElement("div", { key: m.id, className: "flex items-center justify-between gap-2 py-2", style: { borderBottom: `1px solid ${C.line}22` } },
+                  React.createElement("div", { className: "flex items-center gap-2 min-w-0" },
+                    React.createElement(AvatarColor, { name: m.name, size: "sm" }),
+                    React.createElement("div", null,
+                      React.createElement("p", { style: { color: C.cream, fontSize: 13, fontWeight: 500 } }, m.name),
+                      m.role && React.createElement("p", { style: { color: C.mute, fontSize: 10.5 } }, m.role)
+                    )
+                  ),
+                  React.createElement("div", { className: "flex gap-1 shrink-0" },
+                    opts.map(o => React.createElement("button", { key: o.key, onClick: () => setMark(e.id, m.id, o.key), title: o.label, className: "btn font-bold", style: { width: 28, height: 28, borderRadius: 7, fontSize: 12, display: "flex", alignItems: "center", justifyContent: "center", background: status === o.key ? o.color : C.surfaceLight, color: status === o.key ? C.ink : C.mute, border: `1.5px solid ${status === o.key ? o.color : "transparent"}` } }, o.icon))
+                  )
+                );
+              })
+            )
+          : null,
+        // Admin action buttons
+        isAdmin && React.createElement("div", { className: "flex gap-2 pt-3 mt-1", style: { borderTop: `1px solid ${C.line}` } },
+          React.createElement("button", { onClick: () => { duplicateEvent(e); onClose(); }, className: "btn flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold", style: { background: C.teal + "22", color: C.teal } }, React.createElement(CopyPlus, { size: 12 }), " Dupliquer"),
+          React.createElement("button", { onClick: () => { openEditEvent(e); onClose(); }, className: "btn flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold", style: { background: C.surfaceLight, color: C.cream } }, React.createElement(Pencil, { size: 12 }), " Modifier"),
+          confirmDelete?.type === "event" && confirmDelete.id === e.id
+            ? React.createElement(ConfirmDelete, { onConfirm: () => { deleteEvent(e.id); onClose(); }, onCancel: () => setConfirmDelete(null) })
+            : React.createElement("button", { onClick: () => setConfirmDelete({ type: "event", id: e.id }), className: "btn flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold", style: { background: C.coral + "22", color: C.coral } }, React.createElement(Trash2, { size: 12 }), " Supprimer")
+        )
+      )
+    );
+  }
+
+  function EventCalendar({ events, attendance, members, eventCounts, onDayClick, onEventClick, session, isAdmin, displayStyle }) {
+    const [viewDate, setViewDate] = useState(new Date());
+    const year = viewDate.getFullYear();
+    const month = viewDate.getMonth();
+    const today = todayStr();
+    const firstDow = new Date(year, month, 1).getDay(); // 0=Sun
+    const startOffset = firstDow === 0 ? 6 : firstDow - 1; // Mon-first
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const monthLabel = new Date(year, month).toLocaleDateString("fr-CH", { month: "long", year: "numeric" });
+    // Build event map
+    const byDate = {};
+    events.forEach(e => {
+      if (!byDate[e.date]) byDate[e.date] = [];
+      byDate[e.date].push(e);
+    });
+    // Build weeks
+    const cells = [];
+    for (let i = 0; i < startOffset; i++) cells.push(null);
+    for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+    while (cells.length % 7 !== 0) cells.push(null);
+    const weeks = [];
+    for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7));
+    const DAYS = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
+    return React.createElement("div", null,
+      // Nav
+      React.createElement("div", { className: "flex items-center justify-between mb-4" },
+        React.createElement("button", { onClick: () => setViewDate(new Date(year, month - 1, 1)), className: "btn px-3 py-2 rounded-xl", style: { background: C.surfaceLight, color: C.cream } }, "←"),
+        React.createElement("p", { style: { color: C.cream, fontWeight: 700, fontSize: 16, textTransform: "capitalize" } }, monthLabel),
+        React.createElement("button", { onClick: () => setViewDate(new Date(year, month + 1, 1)), className: "btn px-3 py-2 rounded-xl", style: { background: C.surfaceLight, color: C.cream } }, "→")
+      ),
+      // Grid
+      React.createElement("div", { className: "rounded-2xl overflow-hidden", style: { border: `1px solid ${C.line}` } },
+        // Day headers
+        React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(7,1fr)", background: C.surfaceLight } },
+          DAYS.map(d => React.createElement("div", { key: d, style: { textAlign: "center", padding: "8px 0", color: C.mute, fontSize: 11, fontWeight: 700 } }, d))
+        ),
+        // Weeks
+        weeks.map((week, wi) =>
+          React.createElement("div", { key: wi, style: { display: "grid", gridTemplateColumns: "repeat(7,1fr)", borderTop: `1px solid ${C.line}` } },
+            week.map((d, di) => {
+              const dateStr = d ? `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}` : null;
+              const dayEvents = dateStr ? (byDate[dateStr] || []) : [];
+              const isToday = dateStr === today;
+              const isPast = dateStr && dateStr < today;
+              return React.createElement("div", { key: di, onClick: () => d && onDayClick && onDayClick(dateStr), style: { minHeight: 70, borderLeft: di > 0 ? `1px solid ${C.line}` : "none", background: isToday ? C.teal + "11" : "transparent", cursor: d ? "pointer" : "default", padding: "4px 3px" } },
+                d && React.createElement(React.Fragment, null,
+                  React.createElement("div", { style: { width: 22, height: 22, borderRadius: "50%", background: isToday ? C.teal : "transparent", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 2px" } },
+                    React.createElement("span", { style: { color: isToday ? C.ink : isPast ? C.mute : C.cream, fontSize: 12, fontWeight: isToday ? 800 : 400 } }, d)
+                  ),
+                  dayEvents.slice(0, 3).map((ev, ei) => {
+                    const myStatus = !isAdmin && attendance[ev.id]?.[session?.id];
+                    const dot = myStatus === "present" ? C.teal : myStatus === "absent" ? C.coral : myStatus === "maybe" ? C.gold : C.coral;
+                    return React.createElement("div", { key: ev.id, onClick: k => { k.stopPropagation(); onEventClick(ev); }, style: { background: isPast ? C.line : dot, borderRadius: 4, padding: "1px 4px", marginBottom: 2, overflow: "hidden" } },
+                      React.createElement("p", { style: { color: C.ink, fontSize: 9.5, fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" } }, ev.title)
+                    );
+                  }),
+                  dayEvents.length > 3 && React.createElement("p", { style: { color: C.mute, fontSize: 9, textAlign: "center" } }, `+${dayEvents.length - 3}`)
+                )
+              );
+            })
+          )
+        )
+      )
+    );
+  }
+
+  function AdminEventsPanel({ events, members, attendance, eventCounts, openAddEvent, openEditEvent, duplicateEvent, deleteEvent, confirmDelete, setConfirmDelete, setMark, showEventForm, submitEventForm, editingEventId, eventForm, setEventForm, setShowEventForm, setEditingEventId, displayStyle }) {
+    const [detailEvent, setDetailEvent] = useState(null);
+    function handleDayClick(dateStr) {
+      setEventForm(f => ({ ...f, date: dateStr }));
+      openAddEvent();
+    }
+    return React.createElement("div", null,
+      React.createElement("div", { className: "flex items-center justify-between mb-4" },
+        React.createElement("h2", { style: { ...displayStyle, color: C.cream, fontSize: 20 } }, "Événements"),
+        React.createElement("button", { onClick: openAddEvent, className: "btn flex items-center gap-1.5 px-4 py-2 rounded-xl font-semibold text-sm", style: { background: C.cream, color: C.ink } }, React.createElement(Plus, { size: 15 }), " Créer")
+      ),
+      React.createElement(EventCalendar, { events, attendance, members, eventCounts, onDayClick: handleDayClick, onEventClick: setDetailEvent, isAdmin: true, displayStyle }),
+      showEventForm && React.createElement(EventModal, { eventForm, setEventForm, submitEventForm, editingEventId, onClose: () => { setShowEventForm(false); setEditingEventId(null); } }),
+      detailEvent && React.createElement(EventDetailModal, { e: detailEvent, members, attendance, eventCounts, setMark, openEditEvent, duplicateEvent, deleteEvent, confirmDelete, setConfirmDelete, onClose: () => setDetailEvent(null), isAdmin: true })
+    );
+  }
+
+  function MemberEventsPanel({ upcomingEvents, pastEventsDesc, attendance, session, setMark, eventCounts, displayStyle }) {
+    const [detailEvent, setDetailEvent] = useState(null);
+    const allEvents = [...upcomingEvents, ...pastEventsDesc];
+    return React.createElement("div", null,
+      React.createElement("div", { className: "flex items-center justify-between mb-4" },
+        React.createElement("h2", { style: { ...displayStyle, color: C.cream, fontSize: 20 } }, "Événements"),
+        upcomingEvents.length > 0 && React.createElement("span", { style: { background: C.teal + "22", color: C.teal, borderRadius: 8, fontSize: 12, fontWeight: 700, padding: "4px 10px" } }, `${upcomingEvents.length} à venir`)
+      ),
+      React.createElement(EventCalendar, { events: allEvents, attendance, members: [], eventCounts, onEventClick: setDetailEvent, session, isAdmin: false, displayStyle }),
+      detailEvent && React.createElement(EventDetailModal, { e: detailEvent, members: [], attendance, eventCounts, setMark: (eid, mid, s) => setMark(eid, session.id, s), confirmDelete: null, setConfirmDelete: () => {}, onClose: () => setDetailEvent(null), isAdmin: false })
+    );
+  }
+
+  // ========== FIN PANELS ÉVÉNEMENTS ==========
+
+  // ========== NOUVEAUX PANELS v3 ==========
 
   // ========== NOUVEAUX PANELS v3 ==========
 
