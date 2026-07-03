@@ -2021,11 +2021,6 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
 @media (min-width: 1024px) {
   .sidebar { width: 260px; border-right: 1px solid #14141f; }
 }
-
-/* ---- Calendrier ---- */
-.cal-grid { display: flex !important; flex-direction: column !important; }
-.cal-row { display: flex !important; flex-direction: row !important; flex-wrap: nowrap !important; width: 100% !important; }
-.cal-cell { flex: 0 0 14.2857% !important; width: 14.2857% !important; min-height: 76px !important; box-sizing: border-box !important; }
 `;
 
   // ========== NOUVEAUX COMPOSANTS v2 ==========
@@ -2303,75 +2298,6 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
           confirmDelete?.type === "event" && confirmDelete.id === e.id
             ? React.createElement(ConfirmDelete, { onConfirm: () => { deleteEvent(e.id); onClose(); }, onCancel: () => setConfirmDelete(null) })
             : React.createElement("button", { onClick: () => setConfirmDelete({ type:"event", id:e.id }), style: { display:"flex", alignItems:"center", gap:6, padding:"8px 12px", borderRadius:10, border:"none", background:C.coral+"22", color:C.coral, fontSize:12, fontWeight:700, cursor:"pointer" } }, React.createElement(Trash2, { size:12 }), " Supprimer")
-        )
-      )
-    );
-  }
-
-  function EventCalendar({ events, attendance, onDayClick, onEventClick, session, isAdmin }) {
-    const [viewDate, setViewDate] = React.useState(new Date());
-    const year = viewDate.getFullYear();
-    const month = viewDate.getMonth();
-    const today = todayStr();
-    const firstDow = new Date(year, month, 1).getDay();
-    const startOffset = firstDow === 0 ? 6 : firstDow - 1;
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-    const monthLabel = new Date(year, month).toLocaleDateString("fr-CH", { month: "long", year: "numeric" });
-    const byDate = {};
-    events.forEach(e => { if (!byDate[e.date]) byDate[e.date] = []; byDate[e.date].push(e); });
-    const cells = [];
-    for (let i = 0; i < startOffset; i++) cells.push(null);
-    for (let d = 1; d <= daysInMonth; d++) cells.push(d);
-    while (cells.length % 7 !== 0) cells.push(null);
-    const weeks = [];
-    for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7));
-    const DAYS = ["Lun","Mar","Mer","Jeu","Ven","Sam","Dim"];
-    const W = (100/7).toFixed(4) + "%";
-    const rowStyle = { display:"table-row" };
-    const cellStyle = (isToday, isPast, di) => ({
-      display:"table-cell", width:W, verticalAlign:"top",
-      padding:"4px 3px", boxSizing:"border-box",
-      borderRight: di < 6 ? `1px solid ${C.line}` : "none",
-      borderTop: `1px solid ${C.line}`,
-      background: isToday ? C.teal+"18" : "transparent",
-      cursor: "pointer"
-    });
-    return React.createElement("div", null,
-      React.createElement("div", { style: { display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 } },
-        React.createElement("button", { onClick: () => setViewDate(new Date(year, month-1, 1)), style: { background:C.surfaceLight, color:C.cream, padding:"8px 16px", borderRadius:10, border:"none", cursor:"pointer", fontSize:18, fontWeight:700 } }, "←"),
-        React.createElement("p", { style: { color:C.cream, fontWeight:700, fontSize:16, textTransform:"capitalize", margin:0 } }, monthLabel),
-        React.createElement("button", { onClick: () => setViewDate(new Date(year, month+1, 1)), style: { background:C.surfaceLight, color:C.cream, padding:"8px 16px", borderRadius:10, border:"none", cursor:"pointer", fontSize:18, fontWeight:700 } }, "→")
-      ),
-      React.createElement("div", { style: { border:`1px solid ${C.line}`, borderRadius:12, overflow:"hidden" } },
-        React.createElement("div", { style: { display:"table", width:"100%", tableLayout:"fixed", borderCollapse:"collapse" } },
-          React.createElement("div", { style: { display:"table-row", background:C.surfaceLight } },
-            DAYS.map(d => React.createElement("div", { key:d, style: { display:"table-cell", width:W, textAlign:"center", padding:"9px 0", color:C.mute, fontSize:11, fontWeight:700, borderRight:`1px solid ${C.line}`, boxSizing:"border-box" } }, d))
-          ),
-          weeks.map((week, wi) =>
-            React.createElement("div", { key:wi, style: rowStyle },
-              week.map((d, di) => {
-                const dateStr = d ? `${year}-${String(month+1).padStart(2,"0")}-${String(d).padStart(2,"0")}` : null;
-                const dayEvents = dateStr ? (byDate[dateStr] || []) : [];
-                const isToday = dateStr === today;
-                const isPast = dateStr && dateStr < today;
-                return React.createElement("div", { key:di, onClick: () => d && onDayClick && onDayClick(dateStr), style: { ...cellStyle(isToday, isPast, di), minHeight:76 } },
-                  d && React.createElement("div", null,
-                    React.createElement("div", { style: { width:22, height:22, borderRadius:"50%", background:isToday?C.teal:"transparent", display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 3px" } },
-                      React.createElement("span", { style: { color:isToday?C.ink:isPast?C.mute:C.cream, fontSize:12, fontWeight:isToday?800:400, lineHeight:1 } }, d)
-                    ),
-                    dayEvents.slice(0,2).map(ev => {
-                      const myStatus = !isAdmin ? attendance[ev.id]?.[session?.id] : null;
-                      const bg = isPast ? C.line : (myStatus==="present"?C.teal:myStatus==="absent"?C.coral:myStatus==="maybe"?C.gold:C.coral);
-                      return React.createElement("div", { key:ev.id, onClick:k=>{ k.stopPropagation(); onEventClick(ev); }, style: { background:bg, borderRadius:3, padding:"1px 4px", marginBottom:2, cursor:"pointer", overflow:"hidden" } },
-                        React.createElement("p", { style: { color:isPast?C.mute:C.ink, fontSize:9, fontWeight:700, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", margin:0, lineHeight:1.4 } }, ev.title)
-                      );
-                    }),
-                    dayEvents.length > 2 && React.createElement("p", { style: { color:C.mute, fontSize:9, textAlign:"center", margin:0 } }, `+${dayEvents.length-2}`)
-                  )
-                );
-              })
-            )
-          )
         )
       )
     );
